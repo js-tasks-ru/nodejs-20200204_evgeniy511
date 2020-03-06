@@ -43,7 +43,7 @@ server.on("request", (req, res) => {
                 res.writeHead(413, "File size more than 1mb");
                 res.end();
             });
-            req.on("abort", () => {
+            req.on("aborted", () => {
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
                 }

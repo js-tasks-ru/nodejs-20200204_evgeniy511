@@ -37,6 +37,9 @@ server.on("request", (req, res) => {
             });
             const limitStream = new LimitSizeStream({ limit: 1048576 });
             limitStream.on("error", error => {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
                 res.writeHead(413, "File size more than 1mb");
                 res.end();
             });

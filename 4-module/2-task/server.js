@@ -25,6 +25,9 @@ server.on("request", (req, res) => {
         case "POST":
             const wStream = fs.createWriteStream(filePath);
             wStream.on("error", error => {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
                 res.writeHead(500, "Server error");
                 res.end();
             });
@@ -36,6 +39,11 @@ server.on("request", (req, res) => {
             limitStream.on("error", error => {
                 res.writeHead(413, "File size more than 1mb");
                 res.end();
+            });
+            req.on("abort", () => {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
             });
             req.pipe(limitStream).pipe(wStream);
 

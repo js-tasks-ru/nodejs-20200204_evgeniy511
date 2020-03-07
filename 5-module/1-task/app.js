@@ -8,31 +8,43 @@ app.use(require("koa-bodyparser")());
 const Router = require("koa-router");
 const router = new Router();
 
-let subscribers = {};
+let subscribers = [];
 
 router.get("/subscribe", async (ctx, next) => {
-    const {r: id} = ctx.request.query;
-
-    ctx.req.on("close", () => {
-        delete subscribers[id];
+    const sPromise = new Promise((resolve, reject) => {
+        subscribers.push(resolve);
+        ctx.req.on("close", () => {
+            subscribers.splice(subscribers.indexOf(resolve), 1);
+            const error = new Error("Connection closed");
+            error.code = "CONNECTION_CLOSED";
+            reject(error);
+        });
     });
 
-    const sPromise = new Promise((resolve, reject) => {
-        subscribers[id] = {ctx, resolve};
-    })
+    let message
 
-    await sPromise;
+    try {
+        message = await sPromise;
+    } catch (err) {
+        if (err.code === "CONNECTION_CLOSED") return;
+        throw err;
+    }
+
+    ctx.body = message;
 });
 
 router.post("/publish", async (ctx, next) => {
     const { message } = ctx.request.body;
 
-    for(id in subscribers) {
-        const sub = subscribers[id];
-        sub.ctx.body = message;
-        sub.resolve();
+    if (!message) {
+        ctx.throw(400);
     }
-    subscribers = {};
+
+    subscribers.forEach(resolve => {
+        resolve(message);
+    });
+
+    subscribers = [];
 
     ctx.status = 200;
 });
